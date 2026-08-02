@@ -3,10 +3,10 @@
 # PROYECTO   : Diplomado en Estadística, mención Métodos Estadísticos
 #
 # DESCRIPCIÓN:
-# Cálculos realizados para el Informe 1 del Módulo 2 del Diplomado en Estadística UC 2026.
+# Informe 1 del Módulo 2 del Diplomado en Estadística UC 2026.
 #
 # INPUT      : input/01-bbdd_contaminación.xlsx
-# OUTPUT     : output/01-Informe_1.pdf
+# OUTPUT     : output/Qmd/01-Informe_1.pdf
 #
 # AUTOR/A    : Emilia Barrientos Carrasco y Pablo Campos Abutridy
 # FECHA      : 2026-07-29
@@ -28,13 +28,14 @@ library(lmtest)
 library(nortest)
 library(readxl)
 library(performance)
-library(sjPlot)
+library(modelsummary)
+library(gt)
 
 
 # 2) Datos ---------------------------------------------------------------
 
 df <- read_xlsx(
-  "../DE-Modulo_2/data/01-bbdd_contaminacion.xlsx"
+  "../diplomado-estadistica-2026/data/01-bbdd_contaminacion.xlsx"
 )
 
 
@@ -104,6 +105,81 @@ mod_met_humed <- lm(
   data = df_met
 )
 summary(mod_met_humed)
+
+
+## 3.2) Comparación MRLS entre predictores metereológicos ----
+
+# Definir MRLS con variables metereológicas.
+modelos_met <- list(
+  "Modelo 1" = mod_met_viento,
+  "Modelo 2" = mod_met_tprom,
+  "Modelo 3" = mod_met_tmin,
+  "Modelo 4" = mod_met_tmax,
+  "Modelo 5" = mod_met_humed
+)
+
+# Estadísticas adicionales para cada modelo.
+extraer_ajuste <- function(model) {
+  f <- summary(model)$fstatistic
+
+  data.frame(
+    estadistico_f = unname(f["value"]),
+    valor_p_f = pf(
+      q = unname(f["value"]),
+      df1 = unname(f["numdf"]),
+      df2 = unname(f["dendf"]),
+      lower.tail = FALSE
+    ),
+    error_residual = sigma(model)
+  )
+}
+
+gof_met <- data.frame(
+  raw = c(
+    "r.squared",
+    "adj.r.squared",
+    "estadistico_f",
+    "valor_p_f",
+    "error_residual",
+    "nobs"
+  ),
+  clean = c(
+    "R²",
+    "R² ajustado",
+    "Estadístico F",
+    "Valor-p de F",
+    "Error estándar residual",
+    "Observaciones"
+  ),
+  fmt = c(2, 2, 2, 3, 2, 0)
+)
+
+# Definir tabla comparativa de MRLS con predictores metereológicos
+tbl_mod_met <- modelsummary(
+  modelos_met,
+  title = "Comparación de MRLS con predictores meteorológicos",
+
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+
+  stars = c(
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001
+  ),
+
+  gof_function = extraer_ajuste,
+  gof_map = gof_met,
+  output = "gt"
+) |>
+  tab_options(
+    table.font.size = px(10),
+    table.width = pct(80),
+    data_row.padding = px(2)
+  )
+
+# Visualizar tabla comparativa de MRLS con predictores metereológicos.
+tbl_mod_met
 
 
 ## 3.2) Chequeo de supuestos ----
@@ -200,43 +276,36 @@ summary(mod_cont_o3)
 
 ### 4.1.5) Tabla comparativa MRLS ----
 
-tbl_mod_cont <- tab_model(
-  list(
-    mod_cont_no,
-    mod_cont_co,
-    mod_cont_o3,
-    mod_cont_no2
-  ),
-  title = "Comparación de MRLS con predictores contaminantes",
-  dv.labels = paste0("M", 1:4),
-
-  show.ci = FALSE,
-  show.se = TRUE,
-  show.r2 = TRUE,
-  show.fstat = TRUE,
-  #show.aic = TRUE,
-  show.obs = TRUE,
-
-  p.style = "stars",
-  string.pred = "Predictor",
-  string.est = "β",
-  string.se = "EE",
-  string.p = "p",
-
-  digits = 2,
-  digits.p = 3,
-  CSS = list(
-    css.table = paste(
-      "width: auto;",
-      "margin-left: auto;",
-      "margin-right: auto;",
-      "font-size: 8pt;"
-    ),
-    css.caption = "text-align: center;",
-    css.tdata = "padding: 0.15em 0.25em;",
-    css.colnames = "padding: 0.15em 0.25em;"
-  )
+modelos_cont <- list(
+  "Modelo 1" = mod_cont_no,
+  "Modelo 2" = mod_cont_co,
+  "Modelo 3" = mod_cont_o3,
+  "Modelo 4" = mod_cont_no2
 )
+
+tbl_mod_cont <- modelsummary(
+  modelos_cont,
+  title = "Comparación de MRLS con predictores contaminantes",
+
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+
+  stars = c(
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001
+  ),
+
+  gof_function = extraer_ajuste,
+  gof_map = gof_met,
+  output = "gt"
+) |>
+  gt::tab_options(
+    table.font.size = gt::px(10),
+    table.width = gt::pct(80),
+    data_row.padding = gt::px(2)
+  )
+
 tbl_mod_cont
 
 
@@ -462,6 +531,66 @@ tbl_mod_forward <- tab_model(
 )
 tbl_mod_forward
 
+
+extraer_ajuste <- function(model) {
+  f <- summary(model)$fstatistic
+
+  # Modelos sin prueba F, por ejemplo, un modelo con solo intercepto
+  if (is.null(f) || length(f) < 3) {
+    estadistico_f <- NA_real_
+    valor_p_f <- NA_real_
+  } else {
+    f <- as.numeric(f)
+
+    estadistico_f <- f[1]
+
+    valor_p_f <- stats::pf(
+      q = f[1],
+      df1 = f[2],
+      df2 = f[3],
+      lower.tail = FALSE
+    )
+  }
+
+  data.frame(
+    estadistico_f = estadistico_f,
+    valor_p_f = valor_p_f,
+    error_residual = as.numeric(stats::sigma(model)),
+    check.names = FALSE
+  )
+}
+
+extraer_ajuste_forward <- function(model) {
+  ajuste <- extraer_ajuste(model)
+  ajuste$aic_modelo <- as.numeric(AIC(model))
+  ajuste
+}
+
+tbl_mod_forward <- modelsummary(
+  modelos_forward,
+  title = "Comparación de MRLM seleccionados por método forward",
+
+  estimate = "{estimate}{stars}",
+  statistic = NULL,
+
+  stars = c(
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001
+  ),
+
+  gof_function = extraer_ajuste_forward,
+  gof_map = gof_forward,
+  output = "gt"
+) |>
+  gt::tab_options(
+    table.font.size = gt::px(8),
+    table.width = gt::pct(100),
+    data_row.padding = gt::px(2),
+    column_labels.padding = gt::px(3)
+  )
+
+tbl_mod_forward
 
 ## 5.4) Respuesta Pregunta 3 ----
 
