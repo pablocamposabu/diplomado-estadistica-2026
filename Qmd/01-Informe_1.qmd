@@ -10,6 +10,7 @@ lang: es
 output-file: "01-Informe_1.pdf"
 format:
   pdf:
+    fontsize: 10pt  
     toc: false
     number-sections: true
     keep-tex: false
@@ -26,7 +27,7 @@ format:
           }{}%
         }
         \fancyhead[R]{%
-          \small\parbox[b]{0.72\textwidth}{\raggedleft
+          \footnotesize\parbox[b]{0.72\textwidth}{\raggedleft
             Diplomado en Estadística, mención Métodos Estadísticos\\
             Curso 2. Modelamiento Estadístico%
           }%
@@ -40,7 +41,7 @@ format:
             }{}%
           }
           \fancyhead[R]{%
-            \small\parbox[b]{0.72\textwidth}{\raggedleft
+            \footnotesize\parbox[b]{0.72\textwidth}{\raggedleft
               Diplomado en Estadística, mención Métodos Estadísticos\\
               Curso 2. Modelamiento Estadístico%
             }%
@@ -60,7 +61,6 @@ rm(list = ls())
 
 library(tidyverse)
 library(corrplot)
-library(GGally)
 library(car)
 library(lmtest)
 library(nortest)
@@ -68,9 +68,19 @@ library(readxl)
 library(performance)
 library(broom)
 library(gtsummary)
-library(sjPlot)
-library(sjmisc)
+library(gt)
+library(modelsummary)
+
 knitr::opts_knit$set(root.dir = normalizePath(".."))
+
+knitr::opts_chunk$set(
+  root.dir = normalizePath(".."),
+  fig.width = 8,
+  fig.height = 10,
+  fig.align = "center",
+  fig.pos = "H",
+  out.width = "80%"
+)
 ```
 
 ```{r}
@@ -82,165 +92,133 @@ df <- read_xlsx("data/01-bbdd_contaminacion.xlsx")
 
 # Pregunta 1. Mejor MRLS basado en variables metereológicas.
 
-Inicialmente, se calculó una matriz de correlaciones entre la variable respuesta y cada una de las variables meteorológicas, con el fin de explorar la intensidad y dirección de sus asociaciones lineales.
-
-```{r}
-#| label: fig-correlacion-met
-#| echo: false
-#| fig-cap: "Correlaciones entre PM2.5 y las variables meteorológicas."
-#| fig-width: 5
-#| fig-height: 5
-#| out-width: "7cm"
-
-df_met <- df |>
-  select(PM2.5, Viento, TProm, TMin, TMax, Humed)
-
-correlacion_met <- cor(df_met)
-
-gg_corr_met <- corrplot(
-  correlacion_met,
-  type = "lower",
-  method = "number"
-)
-```
-
-A partir de este análisis, se observó que la variable PM2.5 presentó correlaciones de mayor magnitud con las variables TMin (-0,63), TProm (-0,62) y Viento (-0,60), las que constituyen variables candidatas para explicar la variabilidad del material particulado.
+Inicialmente, se calculó una matriz de correlaciones entre la variable respuesta y cada una de las variables de la base de datos (metereológicas y contaminantes), con el fin de explorar la intensidad y dirección de sus asociaciones lineales (ver ). A partir de este análisis, se observó que la variable PM2.5 presentó correlaciones de mayor magnitud con las variables metereológicas *TMin* (-0,63), *TProm* (-0,62) y *Viento* (-0,60), las que constituyen variables candidatas para explicar la variabilidad del material particulado.
 
 Luego, se ajustaron modelos de regresión lineal simple utilizando como variable predicha el nivel de PM2.5 y, como predictor, cada una de las variables meteorológicas (Viento, TProm, TMin, TMax y Humed).
-
-Posteriormente, los modelos se compararon considerando principalmente el R² y la significancia global del modelo (estadístico F y su valor-p). Se seleccionó aquel con mayor capacidad explicativa, que fue el modelo con el predictor TMin, con un R² de 0,3921, el menor error estándar residual (12,87) y el mayor estadístico F (101,9).
 
 ```{r}
 #| label: tbl-mod-met
 #| echo: false
 #| fig-align: center
+#| tbl-cap: "Comparación de MRLS con predictores meteorológicos"
+#| tbl-pos: H
 
+# Definir sub-set con variables metereológicas e Y.
+df_met <- df |>
+  select(
+    PM2.5,
+    Viento,
+    TProm,
+    TMin,
+    TMax,
+    Humed
+  )
+
+# Definir MRLS para cada una de las variables metereológicas
 mod_met_viento <- lm(PM2.5 ~ Viento, data = df_met)
 mod_met_tprom  <- lm(PM2.5 ~ TProm, data = df_met)
 mod_met_tmin   <- lm(PM2.5 ~ TMin, data = df_met)
 mod_met_tmax   <- lm(PM2.5 ~ TMax, data = df_met)
 mod_met_humed  <- lm(PM2.5 ~ Humed, data = df_met)
 
-tbl_mod_met <- tab_model(
-  list(
-    mod_met_viento,
-    mod_met_tprom,
-    mod_met_tmin,
-    mod_met_tmax,
-    mod_met_humed
-  ),
-  title = "Comparación de MRLS con predictores meteorológicos",
-  dv.labels = paste0("M", 1:5),
-
-  show.ci = FALSE,
-  show.se = TRUE,
-  show.r2 = TRUE,
-  show.fstat = TRUE,
-  #show.aic = TRUE,
-  show.obs = TRUE,
-
-  p.style = "stars",
-  string.pred = "Predictor",
-  string.est = "β",
-  string.se = "EE",
-  string.p = "p",
-
-  digits = 2,
-  digits.p = 3,
-  CSS = list(
-    css.table = paste(
-      "width: auto;",
-      "margin-left: auto;",
-      "margin-right: auto;",
-      "font-size: 8pt;"
-      ),
-    css.caption = "text-align: center;",
-    css.tdata = "padding: 0.15em 0.25em;",
-    css.colnames = "padding: 0.15em 0.25em;"
-  )
+# Definir MRLS con variables metereológicas.
+modelos_met <- list(
+  "Modelo 1" = mod_met_viento,
+  "Modelo 2" = mod_met_tprom,
+  "Modelo 3" = mod_met_tmin,
+  "Modelo 4" = mod_met_tmax,
+  "Modelo 5" = mod_met_humed
 )
+
+# Estadísticas adicionales para cada modelo.
+extraer_ajuste <- function(model) {
+  f <- summary(model)$fstatistic
+
+  data.frame(
+    estadistico_f = unname(f["value"]),
+    valor_p_f = pf(
+      q = unname(f["value"]),
+      df1 = unname(f["numdf"]),
+      df2 = unname(f["dendf"]),
+      lower.tail = FALSE
+    ),
+    error_residual = sigma(model)
+  )
+}
+
+gof_met <- data.frame(
+  raw = c(
+    "r.squared",
+    "adj.r.squared",
+    "estadistico_f",
+    "valor_p_f",
+    "error_residual",
+    "nobs"
+  ),
+  clean = c(
+    "R²",
+    "R² ajustado",
+    "Estadístico F",
+    "Valor-p de F",
+    "Error estándar residual",
+    "Observaciones"
+  ),
+  fmt = c(2, 2, 2, 3, 2, 0)
+)
+
+# Definir tabla comparativa de MRLS con predictores metereológicos
+tbl_mod_met <- modelsummary(
+  modelos_met,
+
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+
+  stars = c(
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001
+  ),
+
+  gof_function = extraer_ajuste,
+  gof_map = gof_met,
+  output = "gt"
+) |>
+  tab_options(
+    table.font.size = px(10),
+    table.width = pct(80),
+    data_row.padding = px(2)
+  )
+
+# Visualizar tabla comparativa de MRLS con predictores metereológicos.
 tbl_mod_met
 ```
 
+Posteriormente, los modelos se compararon considerando principalmente el R² y la significancia global del modelo (estadístico F y su valor-p). Se seleccionó aquel con mayor capacidad explicativa, que fue el modelo con el predictor TMin, con un R² de 0,3921, el menor error estándar residual (12,87) y el mayor estadístico F (101,9).
+
 En seguida, para el modelo seleccionado se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal.
 
-```{r}
-#| label: fig-check-mod-tmin
-#| echo: false
-#| fig-cap: "Chequeo de supuestos del MRLS (PM2.5 ~ TMin)."
-#| fig-width: 8
-#| fig-height: 10
-#| out-width: "8cm"
+El supuesto de **linealidad** se evaluó mediante un gráfico de residuos versus valores ajustados y el test RESET de Ramsey. En el gráfico se observó un patrón en la distribución de los residuos, donde la curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta observación fue respaldada por el test RESET (p \< 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia de que la forma lineal no describe adecuadamente la relación.
 
-gg_check_mod_tmin <- check_model(mod_met_tmin)
-gg_check_mod_tmin
-```
+El supuesto de **normalidad** fue evaluado a partir de un gráfico Q-Q de residuos estandarizados, en el cual se observaron desviaciones persistentes en las colas de la recta, lo que sugiere que el supuesto falla de manera localizada. Formalmente se realizó el test de Shapiro-Wilk que evaluó el supuesto de normalidad de los residuos y a partir del cual se rechazó la hipótesis nula (W = 0,9649; p \< 0,001), existiendo evidencia estadísticamente significativa de que los residuos no siguen una distribución normal.
 
-El supuesto de linealidad se evaluó mediante un gráfico de residuos versus valores ajustados y el test RESET de Ramsey. En el gráfico se observó un patrón en la distribución de los residuos, donde la curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta observación fue respaldada por el test RESET (p < 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia de que la forma lineal no describe adecuadamente la relación. 
+El supuesto de **homocedasticidad** fue evaluado gráficamente mediante un gráfico de escala-localización, que permite observar la raíz de los residuos estandarizados, indicando que la varianza de los residuos no sigue un patrón constante. Formalmente, el test de Breusch-Pagan indica que existe evidencia estadísticamente significativa de que la varianza de los residuos no es constante (BP = 41,97; p \< 0,001), por lo que existe evidencia de heterocedasticidad.
 
-El supuesto de normalidad fue evaluado a partir de un gráfico Q-Q de residuos estandarizados, en el cual se observaron desviaciones persistentes en las colas de la recta, lo que sugiere que el supuesto falla de manera localizada. Formalmente se realizó el test de Shapiro-Wilk que evaluó el supuesto de normalidad de los residuos y a partir del cual se rechazó la hipótesis nula (W = 0,9649; p < 0,001), existiendo evidencia estadísticamente significativa de que los residuos no siguen una distribución normal. 
+El supuesto de **independencia** de los residuos fue revisado a partir del test de Durbin-Watson, obteniendo que no hay evidencia de autocorrelación de los residuos (p \> 0,05). Dado que los datos corresponden a mediciones históricas de una estación de monitoreo y la base disponible no permite ordenar las observaciones cronológicamente, este resultado debe interpretarse con cautela.
 
-El supuesto de homocedasticidad fue evaluado gráficamente mediante un gráfico de escala-localización, que permite observar la raíz de los residuos estandarizados, indicando que… Formalmente, el test de Breusch-Pagan indica que existe evidencia estadísticamente significativa de que la varianza de los residuos no es constante (BP = 41,97; p < 0,001), por lo que existe evidencia de heterocedasticidad. 
-
-Adicionalmente, en cuanto a los casos atípicos…
-
-
-```{r}
-#| label: fig-linealidad-met
-#| echo: false
-#| fig-cap: "Residuos versus valores ajustados."
-
-# plot(mod_met_tmin, which = 1)
-```
-
-```{r}
-#| label: test-reset-met
-#| echo: false
-
-# resettest(
-#   mod_met_tmin,
-#   power = 2:3,
-#   type = "fitted"
-# )
-```
-
-```{r}
-#| label: fig-normalidad-met
-#| echo: false
-#| fig-cap: "Gráfico Q–Q de los residuos."
-
-# plot(mod_met_tmin, which = 2)
-```
-
-```{r}
-#| label: test-shapiro-met
-#| echo: false
-
-# shapiro.test(mod_met_tmin$residuals)
-```
-
-```{r}
-#| label: test-bp-met
-#| echo: false
-
-# bptest(mod_met_tmin)
-```
-
-```{r}
-#| label: fig-diagnostico-met
-#| echo: false
-#| fig-cap: "Diagnóstico de los supuestos del modelo meteorológico seleccionado."
-#| fig-width: 10
-#| fig-height: 8
-
-check_model(mod_met_tmin)
-```
+Adicionalmente, en cuanto a los **casos atípicos** el gráfico de *leverage* vs. residuos estandarizados sugiere que no existen observaciones influyentes en la medida en que no parecen existir observaciones que sobrepasen los contornos de distancia de Cook (0,5).
 
 # Pregunta 2. Mejor MRLS basado en contaminantes atmosféricos.
 
+Para realizar este ejercicio, se calculó una matriz de correlaciones entre la variable PM2.5 y predictores de contaminantes atmosféricos. La matriz indicó una fuerte correlación de PM2.5 con todos los predictores. Esta fue más fuerte entre las variables PM2.5 con NO₂ y CO (0.84).
+
+Se ajustaron modelos de regresión lineal simple utilizando como variable respuesta el nivel de PM2.5 y, como predictor, cada uno de los contaminantes atmosféricos. Los modelos con NO₂ y CO presentaron un ajuste muy similar. Sin embargo, se seleccionó el modelo con NO₂, ya que presentó el mayor coeficiente de determinación (R² = 0,707) y el menor error estándar residual (RSE = 8,933). El modelo de regresión con el predictor CO es significativo (F = 70,5%; p\<0,05), lo que indica que la concentración de CO constituye un predictor estadísticamente significativo de la concentración de PM2.5. Adicionalmente, el modelo explica aproximadamente el 70,7% de la variabilidad observada en las concentraciones de PM2.5 a partir de la concentración de CO.
+
 ```{r}
-#| label: objetos-p2
-#| include: false
+#| label: tbl-mod-cont
+#| echo: false
+#| fig-align: center
+#| tbl-cap: "Comparación de MRLS con predictores contaminantes"
+#| tbl-pos: H
 
 df_cont <- df |>
   select(PM2.5, NO, NO2, CO, O3)
@@ -251,143 +229,52 @@ mod_cont_no  <- lm(PM2.5 ~ NO, data = df_cont)
 mod_cont_no2 <- lm(PM2.5 ~ NO2, data = df_cont)
 mod_cont_co  <- lm(PM2.5 ~ CO, data = df_cont)
 mod_cont_o3  <- lm(PM2.5 ~ O3, data = df_cont)
-```
 
-### Análisis de correlación
-
-```{r}
-#| label: fig-correlacion-cont
-#| echo: false
-#| fig-cap: "Correlaciones entre PM2.5 y los contaminantes."
-#| fig-width: 7
-#| fig-height: 6
-
-gg_corr_cont <- corrplot(
-  correlacion_cont,
-  type = "lower",
-  method = "number"
+modelos_cont <- list(
+  "Modelo 1" = mod_cont_no,
+  "Modelo 2" = mod_cont_co,
+  "Modelo 3" = mod_cont_o3,
+  "Modelo 4" = mod_cont_no2
 )
+
+tbl_mod_cont <- modelsummary(
+  modelos_cont,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c(
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001
+  ),
+  gof_function = extraer_ajuste,
+  gof_map = gof_met,
+  output = "gt"
+) |>
+  gt::tab_options(
+    table.font.size = gt::px(10),
+    table.width = gt::pct(80),
+    data_row.padding = gt::px(2)
+  )
+
+tbl_mod_cont
 ```
 
-### Modelos con un predictor
+Se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. El supuesto de linealidad se evaluó mediante un gráfico de residuos vs. valores ajustados que evidenció una curvatura y un posible incumplimiento del supuesto en la cola superior. Formalmente, se estima el test RESET de Ramsey señala que existe evidencia de que la forma lineal no describe adecuadamente la relación (p \< 0,05).
 
-#### Predictor: NO
+Respecto al supuesto de normalidad de los residuos, el gráfico Q-Q de residuos estandarizados evidencia una falla de la normalidad de forma localizada en los extremos, con casos que se separan en las colas. Mediante el test Shapiro-Wilk, se rechaza H0 al 5%, por lo que existe evidencia de que los residuos no son normales.
 
-```{r}
-#| label: resumen-cont-no
-#| echo: false
+Se realizó un chequeo de la homocedasticidad del modelo mediante un gráfico de escala-localización, donde la nube de los residuos no es razonablemente estable. Formalmente, el test de Breusch-Pagan resultó estadísticamente significativo (BP = 55,17; p \< 0,001), por lo que se rechaza la hipótesis nula de homocedasticidad. En consecuencia, existe evidencia de heterocedasticidad, indicando que la varianza de los residuos no es constante a lo largo de los valores ajustados. Por tanto, el supuesto de homocedasticidad no se cumple.
 
-summary(mod_cont_no)
-```
+En cuanto al chequeo de independencia, el test de Durbin-Watson no evidencia autocorrelación de los residuos (DW = 2.039, p \> 0.05) . Sin embargo, dado que los datos corresponden a mediciones históricas de una estación de monitoreo de la calidad del aire, podría existir dependencia temporal entre observaciones. Esta posibilidad no puede evaluarse adecuadamente, ya que la base disponible no incluye una variable que permita ordenar las observaciones cronológicamente. Por tanto, los resultados del test deben interpretarse con cautela.
 
-#### Predictor: NO2
-
-```{r}
-#| label: resumen-cont-no2
-#| echo: false
-
-summary(mod_cont_no2)
-```
-
-#### Predictor: CO
-
-```{r}
-#| label: resumen-cont-co
-#| echo: false
-
-summary(mod_cont_co)
-```
-
-#### Predictor: O3
-
-```{r}
-#| label: resumen-cont-o3
-#| echo: false
-
-summary(mod_cont_o3)
-
-  mod_cont_o3 |> 
-    tbl_regression() |> 
-    add_global_p() |> 
-    add_significance_stars() |> 
-    bold_labels() |> 
-    italicize_labels()
-```
-
-## Chequeo de supuestos del modelo con CO
-
-### Linealidad
-
-```{r}
-#| label: test-reset-cont
-#| echo: false
-
-resettest(
-  mod_cont_co,
-  power = 2:3,
-  type = "fitted"
-)
-```
-
-### Normalidad
-
-```{r}
-#| label: test-shapiro-cont
-#| echo: false
-
-shapiro.test(mod_cont_co$residuals)
-```
-
-### Homocedasticidad
-
-```{r}
-#| label: test-bp-cont
-#| echo: false
-
-bptest(mod_cont_co)
-```
-
-### Diagnóstico general
-
-```{r}
-#| label: fig-diagnostico-cont
-#| echo: false
-#| fig-cap: "Diagnóstico de los supuestos del modelo con CO."
-#| fig-width: 10
-#| fig-height: 8
-
-check_model(mod_cont_co)
-```
+Finalmente, en el gráfico de observaciones influyentes la mayoría de las observaciones están concentradas en la zona de bajo leverage y residuos cercanos a cero. Además, no parecen existir observaciones que sobrepasen los contornos de distancia de Cook (0,5).
 
 # Pregunta 3. Mejor modelo predictivo según técnicas iterativas.
 
-## Correlación entre todas las variables
+Las técnicas backward, forward y both seleccionaron el mismo modelo final, compuesto por las variables Viento, TMin, Humed, NO, NO2, CO y O3. Asimismo, los tres modelos comparten las mismas métricas AIC y BIC:
 
 ```{r}
-#| label: objetos-correlacion-total
-#| include: false
-
-correlacion_total <- cor(df)
-```
-
-```{r}
-#| label: fig-correlacion-total
-#| echo: false
-#| fig-cap: "Matriz de correlaciones de todas las variables."
-#| fig-width: 9
-#| fig-height: 8
-
-gg_corr_total <- corrplot(
-  correlacion_total,
-  type = "lower",
-  method = "number"
-)
-```
-
-## Selección automática del MRLM
-
-```{r}
-#| label: objetos-seleccion
+#| label: objetos-metricas-seleccion
 #| include: false
 
 mod_vacio <- lm(PM2.5 ~ 1, data = df)
@@ -412,201 +299,265 @@ mod_both <- step(
   scope = formula(mod_total),
   trace = 0
 )
+
+# Modelos de cada paso del procedimiento forward
+mod_forward_1 <- lm(
+  PM2.5 ~ 1,
+  data = df
+)
+
+mod_forward_2 <- lm(
+  PM2.5 ~ NO2,
+  data = df
+)
+
+mod_forward_3 <- lm(
+  PM2.5 ~ NO2 + CO,
+  data = df
+)
+
+mod_forward_4 <- lm(
+  PM2.5 ~ NO2 + CO + Humed,
+  data = df
+)
+
+mod_forward_5 <- lm(
+  PM2.5 ~ NO2 + CO + Humed + O3,
+  data = df
+)
+
+mod_forward_6 <- lm(
+  PM2.5 ~ NO2 + CO + Humed + O3 + TMin,
+  data = df
+)
+
+mod_forward_7 <- lm(
+  PM2.5 ~ NO2 + CO + Humed + O3 + TMin + NO,
+  data = df
+)
+
+mod_forward_8 <- lm(
+  PM2.5 ~ NO2 + CO + Humed + O3 + TMin + NO + Viento,
+  data = df
+)
+
+tbl_criterios <- data.frame(
+  Criterio = c("AIC", "BIC"),
+  Backward = c(AIC(mod_backward), BIC(mod_backward)),
+  Forward  = c(AIC(mod_forward),  BIC(mod_forward)),
+  Both     = c(AIC(mod_both),     BIC(mod_both)),
+  check.names = FALSE
+)
+
 ```
 
-### Método backward
-
 ```{r}
-#| label: resumen-backward
+#| label: tbl-aic-bic
 #| echo: false
-
-summary(mod_backward)
-```
-
-### Método forward
-
-```{r}
-#| label: resumen-forward
-#| echo: false
-
-summary(mod_forward)
-glance(mod_forward)
-```
-
-### Método both
-
-```{r}
-#| label: resumen-both
-#| echo: false
-
-summary(mod_both)
-```
-
-## Métricas para seleccionar el mejor modelo
-
-```{r}
-#| label: objetos-metricas-seleccion
-#| include: false
-
-tbl_aic <- cbind(
-  Backward = AIC(mod_backward),
-  Forward = AIC(mod_forward),
-  Both = AIC(mod_both)
-) |>
-  as.data.frame()
-rownames(tbl_aic) <- "AIC"
-
-tbl_bic <- cbind(
-  Backward = BIC(mod_backward),
-  Forward = BIC(mod_forward),
-  Both = BIC(mod_both)
-) |>
-  as.data.frame()
-rownames(tbl_bic) <- "BIC"
-```
-
-### AIC
-
-```{r}
-#| label: tabla-aic
-#| echo: false
+#| tbl-cap: "AIC y BIC de MRLM obtenidos por técnicas de selección iterativas"
+#| tbl-pos: H
 
 knitr::kable(
-  tbl_aic,
+  tbl_criterios,
   digits = 3,
-  caption = "AIC de los modelos obtenidos mediante selección automática."
+  align = c("l", "r", "r", "r"),
+  col.names = c(
+    "Criterio",
+    "Backward",
+    "Forward",
+    "Both"
+  )
 )
 ```
 
-### BIC
+Aunque las variables aparecen en distinto orden en las fórmulas, el conjunto de predictores es idéntico y, por consiguiente, los modelos son equivalentes. Por lo tanto, no existe un método superior según las métricas finales; los tres procedimientos convergen a la misma especificación. La diferencia entre ellos se encuentra únicamente en la trayectoria seguida durante la selección.
+
+En la Tabla se presentan las medidas resumen de los ocho modelos de regresión lineal múltiple obtenidos iterativamente mediante el método de selección forward. A continuación, se describe la variación del R² ajustado y del AIC en cada etapa del procedimiento, considerando como referencia el modelo inmediatamente anterior.
+
+En primer lugar, el Modelo 1 (PM2.5 \~ 1), que incorporó únicamente el intercepto, presentó un R² ajustado de 0,000 y un AIC de 1353,215.
+
+En segundo lugar, el Modelo 2, con un predictor (PM2.5 \~ NO2), presentó un aumento de 0,705 en el R² ajustado, alcanzando un valor de 0,705. Asimismo, el AIC disminuyó en 194,446, hasta alcanzar un valor de 1158,769.
+
+En tercer lugar, el Modelo 3, con dos variables predictoras (PM2.5 \~ NO2 + CO), presentó un aumento de 0,058 en el R² ajustado, que alcanzó un valor de 0,763. Al mismo tiempo, el AIC disminuyó en 33,755, situándose en 1125,014.
+
+En cuarto lugar, el Modelo 4, con tres variables predictoras (PM2.5 \~ NO2 + CO + Humed), presentó un aumento de 0,025 en el R² ajustado, alcanzando un valor de 0,788. Por su parte, el AIC disminuyó en 16,856, hasta un valor de 1108,158.
+
+En quinto lugar, el Modelo 5, con cuatro variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3), presentó un aumento de 0,013 en el R² ajustado, que alcanzó un valor de 0,801. A su vez, el AIC disminuyó en 9,457, situándose en 1098,701.
+
+En sexto lugar, el Modelo 6, con cinco variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin), presentó un aumento de 0,011 en el R² ajustado, alcanzando un valor de 0,812. Paralelamente, el AIC disminuyó en 7,609, hasta alcanzar un valor de 1091,092.
+
+En séptimo lugar, el Modelo 7, con seis variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin + NO), presentó un aumento de 0,003 en el R² ajustado, que alcanzó un valor de 0,815. Asimismo, el AIC disminuyó en 2,282, situándose en 1088,810.
+
+Finalmente, el Modelo 8, con siete variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin + NO + Viento), presentó un aumento de 0,005 en el R² ajustado, alcanzando un valor de 0,820. Por su parte, el AIC disminuyó en 2,823, hasta alcanzar su menor valor entre los modelos comparados: 1085,987.
 
 ```{r}
-#| label: tabla-bic
+#| label: tbl-mod-forward
 #| echo: false
+#| fig-align: center
+#| tbl-cap: "Comparación de MRLM seleccionados mediante el método forward"
+#| tbl-pos: H
 
-knitr::kable(
-  tbl_bic,
-  digits = 3,
-  caption = "BIC de los modelos obtenidos mediante selección automática."
+# Lista de objetos lm
+modelos_forward <- list(
+  "Modelo 1" = mod_forward_1,
+  "Modelo 2" = mod_forward_2,
+  "Modelo 3" = mod_forward_3,
+  "Modelo 4" = mod_forward_4,
+  "Modelo 5" = mod_forward_5,
+  "Modelo 6" = mod_forward_6,
+  "Modelo 7" = mod_forward_7,
+  "Modelo 8" = mod_forward_8
 )
-```
 
-Los procedimientos *backward*, *forward* y *both* seleccionaron el mismo modelo final, compuesto por las variables Viento, TMin, Humed, NO, NO2, CO y O3. Aunque las variables aparecen en distinto orden en las fórmulas, el conjunto de predictores es idéntico y, por consiguiente, los modelos son equivalentes. No existe un método superior según las métricas finales: los tres procedimientos convergen a la misma especificación y difieren únicamente en la trayectoria seguida durante la selección.
+# Extraer medidas de ajuste
+extraer_ajuste_forward <- function(model) {
+
+  f <- summary(model)$fstatistic
+
+  # El modelo con solo intercepto no tiene prueba F global
+  if (is.null(f) || length(f) < 3) {
+    estadistico_f <- NA_real_
+    valor_p_f <- NA_real_
+  } else {
+    f <- as.numeric(f)
+
+    estadistico_f <- f[1]
+
+    valor_p_f <- stats::pf(
+      q = f[1],
+      df1 = f[2],
+      df2 = f[3],
+      lower.tail = FALSE
+    )
+  }
+
+  data.frame(
+    estadistico_f = estadistico_f,
+    valor_p_f = valor_p_f,
+    error_residual = as.numeric(stats::sigma(model)),
+    aic_modelo = as.numeric(stats::AIC(model)),
+    check.names = FALSE
+  )
+}
+
+# Selección, nombres y formato de las medidas de ajuste
+gof_forward <- data.frame(
+  raw = c(
+    "r.squared",
+    "adj.r.squared",
+    "estadistico_f",
+    "valor_p_f",
+    "error_residual",
+    "aic_modelo",
+    "nobs"
+  ),
+  clean = c(
+    "R²",
+    "R² ajustado",
+    "Estadístico F",
+    "Valor-p de F",
+    "Error estándar residual",
+    "AIC",
+    "Observaciones"
+  ),
+  fmt = c(2, 2, 2, 3, 2, 2, 0)
+)
+
+# Construcción de la tabla
+tbl_mod_forward <- modelsummary::modelsummary(
+  modelos_forward,
+
+  estimate = "{estimate}{stars}",
+  statistic = NULL,
+
+  stars = c(
+    "*"   = 0.05,
+    "**"  = 0.01,
+    "***" = 0.001
+  ),
+
+  gof_function = extraer_ajuste_forward,
+  gof_map = gof_forward,
+  output = "gt"
+) |>
+  gt::tab_options(
+    table.font.size = gt::px(8),
+    table.width = gt::pct(100),
+    data_row.padding = gt::px(2),
+    column_labels.padding = gt::px(3)
+  )
+
+tbl_mod_forward
+```
 
 # Pregunta 4. Mejor MRLM con tres predictores.
 
-## MRLM con tres predictores
+Con base en los resultados obtenidos previamente, se propone un modelo de regresión lineal múltiple para explicar los niveles de PM2.5, incorporando como predictores la temperatura mínima (TMin), correspondiente a una variable meteorológica, y dos contaminantes atmosféricos: dióxido de nitrógeno (NO2) y monóxido de carbono (CO). El modelo propuesto se especifica de la siguiente manera:
+
+PM2.5i ​= β0 ​+ β1​TMini ​+ β2​NO2i ​+ β3​COi ​+ εi​
+
+El modelo de regresión lineal múltiple estimado presentó un R2 ajustado de 0,77, por lo que el 77,41% de la variabilidad de la variable dependiente es explicada conjuntamente por los tres predictores. Además, el estadístico F indica que el modelo es estadísticamente significativo (p \< 0,001).
+
+Ceteris paribus, un aumento de 1°C en TMin se asocia con una disminución esperada de 0,57 unidades de PM2.5 (p \< 0,01), un aumento de 1 ppb de NO2 se asocia con un aumento esperado de 0,53 unidades de PM2.5 (p \< 0,001), y un aumento de 1 ppm de CO se asocia con un aumento esperado de 13,70 unidades de PM2.5 (p \< 0,001).
+
+Posteriormente, se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. Para chequear el supuesto de linealidad, se realizó un gráfico de residuos vs. valores ajustados, donde se observó una curva suavizada aproximadamente horizontal, aunque con curvaturas en los extremos, lo que podría sugerir un incumplimiento del supuesto. Formalmente, el test RESET de Ramsey resulta estadísticamente significativo (RESET = 3,30; p \< 0,05), por lo que se rechaza la hipótesis nula. En consecuencia, existe evidencia de una posible mala especificación de la forma funcional del modelo, por lo que no se cumple adecuadamente el supuesto de linealidad.
+
+Al evaluar el supuesto de normalidad de los residuos, el gráfico Q-Q de residuos estandarizados muestra que los puntos siguen aproximadamente la línea, con desviaciones en las colas superior e inferior, por lo que el supuesto de normalidad podría estar fallando de manera localizada. Por su parte, el test de Shapiro-Wilk resulta estadísticamente significativo (W = 0,975; p \< 0,01), por lo que se rechaza la hipótesis nula de normalidad. En consecuencia, no se cumple el supuesto de normalidad de los residuos.
+
+En seguida, se evaluó el supuesto de homocedasticidad revisando si la varianza de los errores permanece constante a lo largo de todos los valores ajustados. El gráfico de escala-localización mostró cambios en la dispersión de los residuos en función de los valores ajustados, sugiriendo que su varianza no permanece constante. Esto fue respaldado por el test de Breusch-Pagan, que fue estadísticamente significativo (BP = 53,65; p \< 0,001), por lo que se rechaza la hipótesis nula de varianza constante. En consecuencia, no se cumple el supuesto de homocedasticidad.
+
+Respecto de la independencia, el test de Durbin-Watson no evidencia autocorrelación positiva de primer orden en los residuos (DW = 2,17; p = 0,863). No obstante, al tratarse del mismo conjunto de datos históricos analizado previamente, se mantienen las limitaciones señaladas respecto de la ausencia de información sobre el orden temporal de las observaciones. Por otro lado, gráficamente no se identificaron observaciones altamente influyentes, ya que, aunque algunos casos presentan mayor leverage o residuos estandarizados, las observaciones se mantienen dentro de los contornos definidos por la distancia de Cook.
+
+Por último, se evaluó la multicolinealidad. La matriz de correlaciones entre variables predictoras muestra asociaciones negativas moderadas entre TMin y NO2 (r = −0,61) y entre TMin y CO (r = −0,57), mientras que NO2 y CO presentan una correlación positiva alta (r = 0,84), lo que evidencia información compartida entre ambos predictores. Este patrón es consistente con el gráfico diagnóstico basado en el Factor de Inflación de la Varianza (VIF). Los valores obtenidos se encuentran por debajo de 5 para los tres predictores. Como indica formalmente la Tabla XXX, TMin presenta el menor VIF (1,616), mientras que CO (3,562) y NO2 (3,794) presentan valores más elevados. En conjunto, estos resultados sugieren una colinealidad baja a moderada entre los predictores, sin alcanzar niveles considerados problemáticos según el criterio VIF \< 5.
+
+\clearpage
+
+# Anexos
+
+## Matriz de correlación entre variables
 
 ```{r}
-#| label: objetos-p4
-#| include: false
-
-coef_both_ordenados <- coef(summary(mod_both))[
-  order(coef(summary(mod_both))[, "Pr(>|t|)"], decreasing = TRUE),
-]
-
-mod_tres_pred <- lm(
-  PM2.5 ~ Humed + NO2 + CO,
-  data = df
-)
-```
-
-Se selecciona Humed como variable meteorológica y NO2 y CO como contaminantes.
-
-### Coeficientes del modelo seleccionado en la pregunta 3
-
-```{r}
-#| label: tabla-coeficientes-both
+#| label: tbl-corr-df
 #| echo: false
+#| fig-align: center
+#| tbl-pos: H
 
-knitr::kable(
-  coef_both_ordenados,
-  digits = 4,
-  caption = "Coeficientes del modelo seleccionado, ordenados por valor p."
-)
+tabla_corr <- cor(df, use = "pairwise.complete.obs") |>
+  round(2) |>
+  knitr::kable(
+    caption = "Matriz de correlación entre variables",
+    align = "c"
+  )
+tabla_corr
 ```
 
-### Resumen del modelo de tres predictores
+## Diagnóstico de supuestos MRLS con variable metereológica (PM2.5 \~ Tmin)
 
 ```{r}
-#| label: resumen-tres-pred
+#| label: fig-diagnostico-met
 #| echo: false
+#| fig-cap: "Diagnóstico de supuestos del MRLS (PM2.5 ~ TMin)"
 
-summary(mod_tres_pred)
+check_model(mod_met_tmin)
 ```
 
-## Chequeo de supuestos
+## Diagnóstico de supuestos MRLS con variable contaminante (PM2.5 \~ CO)
 
 ```{r}
-#| label: fig-diagnostico-tres-pred
+#| label: fig-diagnostico-cont
 #| echo: false
-#| fig-cap: "Diagnóstico general del modelo de tres predictores."
-#| fig-width: 10
-#| fig-height: 8
+#| fig-cap: "Diagnóstico de supuestos del MRLS (PM2.5 ~ CO)"
 
-gg_supuestos_mtp <- check_model(mod_tres_pred)
-gg_supuestos_mtp
+check_model(mod_cont_co)
 ```
 
-### Linealidad
+## Pregunta 4. Diagnóstico de supuestos MRLM con una variable metereológica y dos contaminantes (PM2.5 \~ TMin + NO2 + CO)
 
 ```{r}
-#| label: fig-residuos-parciales
+#| label: fig-diagnostico-mrlm
 #| echo: false
-#| fig-cap: "Gráficos de residuos parciales del modelo de tres predictores."
-#| fig-width: 9
-#| fig-height: 7
+#| fig-cap: "Diagnóstico de supuestos del MRLS (PM2.5 ~ TMin + NO2 + CO)"
 
-residualPlots(mod_tres_pred)
-```
-
-```{r}
-#| label: test-reset-tres-pred
-#| echo: false
-
-resettest(
-  mod_tres_pred,
-  power = 2:3,
-  type = "fitted"
-)
-```
-
-### Normalidad
-
-```{r}
-#| label: test-shapiro-tres-pred
-#| echo: false
-
-shapiro.test(mod_tres_pred$residuals)
-```
-
-### Homocedasticidad
-
-```{r}
-#| label: test-bp-tres-pred
-#| echo: false
-
-bptest(mod_tres_pred)
-```
-
-### Multicolinealidad
-
-```{r}
-#| label: objetos-vif
-#| include: false
-
-tbl_vif_mtp <- vif(mod_tres_pred) |>
-  as.data.frame()
-colnames(tbl_vif_mtp) <- "VIF"
-```
-
-```{r}
-#| label: tabla-vif
-#| echo: false
-
-knitr::kable(
-  tbl_vif_mtp,
-  digits = 3,
-  caption = "Factores de inflación de la varianza del modelo de tres predictores."
-)
+mod_rlm_p4 <- lm(PM2.5 ~ TMin + NO2 + CO, data = df)
+check_model(mod_rlm_p4)
 ```
