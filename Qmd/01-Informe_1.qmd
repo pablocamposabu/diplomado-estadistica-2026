@@ -10,7 +10,12 @@ lang: es
 output-file: "01-Informe_1.pdf"
 format:
   pdf:
-    fontsize: 10pt  
+    fontsize: 10pt
+    geometry:
+    - top=3cm
+    - bottom= 3.5cm
+    - left=2.5cm
+    - right=2.5cm
     toc: false
     number-sections: true
     fig-cap-location: top
@@ -194,7 +199,14 @@ tbl_mod_met <- modelsummary(
 tbl_mod_met
 ```
 
-En seguida, se verificó el cumplimiento de los supuestos de regresión lineal del Modelo 3 de manera gráfica y formal. En primer lugar, el supuesto de **linealidad** se evaluó mediante un gráfico de residuos versus valores ajustados (@fig-diagnostico-met) y el test RESET de *Ramsey*. En el gráfico se observó un patrón en la distribución de los residuos de una curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta evaluación fue comprobada con el test RESET (p \< 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia estadísticamente significativa que la forma lineal no describe adecuadamente la relación.
+De esta manera, el Modelo 3 quedó formalizado en la siguiente fórmula:
+$$
+\widehat{PM2.5}_{i}
+= 45{,}4178 - 2{,}5131\,TMin_i + \varepsilon_i
+$$
+Por una parte, el modelo estima que, en promedio , un aumento de 1ºC en la temperatura mínima se asocia con una disminución estimada de 2,51 unidades en la concentración de materia particulada de 2.5 mg/m3 (p \< 0,001). Por otra parte, el intercepto indica que cuando la temperatura mínima es de 0ºC, la concentración media de materia particulada estimada es de 45,42 mg/m3. Este modelo explica el 39,2% de la variabilidad observada y es globalmente significativo.
+
+Se verificó el cumplimiento de los supuestos de regresión lineal del Modelo 3 de manera gráfica y formal. En primer lugar, el supuesto de **linealidad** se evaluó mediante un gráfico de residuos versus valores ajustados (@fig-diagnostico-met) y el test RESET de *Ramsey*. En el gráfico se observó un patrón en la distribución de los residuos de una curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta evaluación fue comprobada con el test RESET (p \< 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia estadísticamente significativa que la forma lineal no describe adecuadamente la relación.
 
 En segundo lugar, el supuesto de **normalidad** fue evaluado a partir del gráfico Q-Q de residuos estandarizados (@fig-diagnostico-met ), en el cual se observaron desviaciones persistentes en las colas de la recta, lo que sugiere que el supuesto falla de manera localizada en los valores extremos. Formalmente se realizó el test de *Shapiro-Wilk* que evaluó el supuesto de normalidad de los residuos y a partir del cual se rechazó la hipótesis nula (W = 0,9649; p \< 0,001), existiendo evidencia estadísticamente significativa de que los residuos no siguen una distribución normal.
 
@@ -208,7 +220,7 @@ Por último, en cuanto a los **casos atípicos,** el gráfico de *leverage* vs. 
 
 Para estimar este modelo de regresión lineal, primero se observó la matriz de correlación entre la variable *PM2.5* y los cuatro contaminantes atmosféricos (ver @tbl-corr-df). La tabla indicó una fuerte correlación de PM2.5 con todos los predictores. Sin embargo, fue de mayor magnitud con *NO₂* y *CO* (0.84).
 
-Luego, se ajustaron cuatro modelos de regresión lineal simple para estimar el nivel de *PM2.5* con cada uno de los contaminantes atmosféricos como variables predictoras. Los modelos 2 (*CO*) y 4 (*NO₂*) presentaron un ajuste muy similar. Sin embargo, se seleccionó el modelo 4, ya que presentó el mayor coeficiente de determinación (R² = 0,707) y el menor error estándar residual (RSE = 8,933).
+Luego, se ajustaron cuatro modelos de regresión lineal simple para estimar el nivel de *PM2.5* con cada uno de los contaminantes atmosféricos como variables predictoras. El Modelo 2 (*CO*) y el Modelo 4 (*NO₂*) presentaron un ajuste muy similar. Sin embargo, se seleccionó el Modelo 4, ya que presentó el mayor coeficiente de determinación (R² = 0,707) y el menor error estándar residual (RSE = 8,933).
 
 ```{r}
 #| label: tbl-mod-cont
@@ -255,6 +267,13 @@ tbl_mod_cont <- modelsummary(
 
 tbl_mod_cont
 ```
+
+Así, el modelo seleccionado quedó formalizado en la siguiente fórmula:
+$$
+\widehat{PM2.5}_{i}
+= -3{,}3459 + 1{,}1296\,NO2_{i} + \varepsilon_i
+$$
+Por una parte, el modelo estima que, en promedio, un aumento de una parte por billón de dióxido de nitrógeno se asocia con un aumento estimado de 1,13 unidades en la concentración media de materia particulada de 2,5 mg/m3 (p \< 0,001). Por otra parte, el intercepto indica que cuando el dióxido de nitrógeno es igual a cero, la concentración media predicha de materia particulada de 2,5 mg/m3 es -3,35 unidades. Sin embargo, esto corresponde sólo a un parámetro matemático del modelo, pues no es posible observar una concentración negativa. Este modelo explica aproximadamente el 70,7% de la variabilidad observada en *PM2.5.*
 
 Se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. En primer lugar, el supuesto de **linealidad** se evaluó mediante un gráfico de residuos vs. valores ajustados que evidenció una curvatura y un posible incumplimiento del supuesto en la cola superior (ver @fig-diagnostico-cont). Formalmente, se estimó el test RESET de *Ramsey*, el que muestra que existe evidencia de que la forma lineal no describe adecuadamente la relación (p \< 0,05).
 
@@ -471,21 +490,21 @@ tbl_mod_forward <- modelsummary::modelsummary(
 tbl_mod_forward
 ```
 
-En conjunto, los resultados muestran que la mayor capacidad explicativa se obtuvo con la incorporación de *NO2*, mientras que las variables restantes aportaron mejoras adicionales de menor magnitud, aunque suficientes para alcanzar el mejor desempeño del modelo final (Modelo 8).
+En conjunto, los resultados muestran que la mayor capacidad explicativa se obtuvo con la incorporación de *NO2*, mientras que las variables restantes aportaron mejoras adicionales de menor magnitud, aunque suficientes para alcanzar el mejor desempeño del modelo final:
 
 # Pregunta 4. Mejor MRLM con tres predictores.
 
 Con base en los resultados obtenidos previamente, se propone un modelo de regresión lineal múltiple para explicar los niveles de *PM2.5*, incorporando como predictores la temperatura mínima (*TMin*), correspondiente a una variable meteorológica, y dos contaminantes atmosféricos: dióxido de nitrógeno (*NO2*) y monóxido de carbono (*CO*). El modelo propuesto se especifica de la siguiente manera:
-
 $$
-\mathrm{PM}_{2.5,i}
+\mathrm{PM2.5}_{i}
 =
 \beta_0
 + \beta_1 \mathrm{TMin}_i
-+ \beta_2 \mathrm{NO}_{2,i}
++ \beta_2 \mathrm{NO2}_{i}
 + \beta_3 \mathrm{CO}_i
 + \varepsilon_i
-$$El modelo de regresión lineal múltiple estimado presentó un R² ajustado de 0,77, por lo que el 77,41% de la variabilidad de la variable dependiente es explicada conjuntamente por los tres predictores. Además, el estadístico F indica que el modelo es estadísticamente significativo (p \< 0,001). De esta manera, *ceteris paribus*, un aumento de 1°C en *TMin* se asocia con una disminución esperada de 0,57 unidades de *PM2.5* (p \< 0,01), un aumento de 1 ppb de *NO2* se asocia con un aumento esperado de 0,53 unidades de *PM2.5* (p \< 0,001), y un aumento de 1 ppm de *CO* se asocia con un aumento esperado de 13,70 unidades de *PM2.5* (p \< 0,001).
+$$
+El modelo de regresión lineal múltiple estimado presentó un R² ajustado de 0,77, por lo que el 77,41% de la variabilidad de la variable dependiente es explicada conjuntamente por los tres predictores. Además, el estadístico F indica que el modelo es estadísticamente significativo (p \< 0,001). De esta manera, *ceteris paribus*, un aumento de 1°C en *TMin* se asocia con una disminución esperada de 0,57 unidades de *PM2.5* (p \< 0,01), un aumento de 1 ppb de *NO2* se asocia con un aumento esperado de 0,53 unidades de *PM2.5* (p \< 0,001), y un aumento de 1 ppm de *CO* se asocia con un aumento esperado de 13,70 unidades de *PM2.5* (p \< 0,001).
 
 Posteriormente, se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. En primer lugar, para chequear el supuesto de **linealidad** se realizó un gráfico de residuos vs. valores ajustados (ver @fig-diagnostico-mrlm). En este se observó una curva suavizada aproximadamente horizontal, aunque con curvaturas en los extremos, lo que podría sugerir un incumplimiento del supuesto. Formalmente, el test RESET de *Ramsey* resultó estadísticamente significativo (RESET = 3,30; p \< 0,05), por lo que se rechaza la hipótesis nula. Es decir, existe evidencia de una posible mala especificación de la forma funcional del modelo, por lo que no se cumple adecuadamente el supuesto de linealidad.
 
