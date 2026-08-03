@@ -13,6 +13,7 @@ format:
     fontsize: 10pt  
     toc: false
     number-sections: true
+    fig-cap-location: top
     keep-tex: false
     include-in-header:
       text: |
@@ -79,7 +80,7 @@ knitr::opts_chunk$set(
   fig.height = 10,
   fig.align = "center",
   fig.pos = "H",
-  out.width = "80%"
+  out.width = "90%"
 )
 ```
 
@@ -92,9 +93,9 @@ df <- read_xlsx("data/01-bbdd_contaminacion.xlsx")
 
 # Pregunta 1. Mejor MRLS basado en variables metereológicas.
 
-Inicialmente, se calculó una matriz de correlaciones entre la variable respuesta y cada una de las variables de la base de datos (metereológicas y contaminantes), con el fin de explorar la intensidad y dirección de sus asociaciones lineales (ver ). A partir de este análisis, se observó que la variable PM2.5 presentó correlaciones de mayor magnitud con las variables metereológicas *TMin* (-0,63), *TProm* (-0,62) y *Viento* (-0,60), las que constituyen variables candidatas para explicar la variabilidad del material particulado.
+Inicialmente, se calculó una matriz de correlación para cada una de las variables de la base de datos, con el fin de explorar la intensidad y dirección de sus asociaciones lineales (ver @tbl-corr-df ). A partir de este análisis, se observó que la variable *PM2.5* presentó una correlación de mayor magnitud con las variables metereológicas *TMin* (-0,63), *TProm* (-0,62) y *Viento* (-0,60). Así, se constituyeron como candidatas para explicar la variabilidad del material particulado (*PM2.5*).
 
-Luego, se ajustaron modelos de regresión lineal simple utilizando como variable predicha el nivel de PM2.5 y, como predictor, cada una de las variables meteorológicas (Viento, TProm, TMin, TMax y Humed).
+Luego, se ajustaron cinco modelos de regresión lineal simple con el objetivo de estimar el nivel de *PM2.5* a partir de cada uno de los predictores meteorológicos (*Viento*, *TProm*, *TMin*, *TMax* y *Humed*). Estos modelos se compararon considerando su R² y la significancia global de cada uno (estadístico F y su valor-p). Así, se seleccionó el Modelo 3 (predictor *TMin*) porque cuenta con la mayor capacidad explicativa (R² = 0,3921), el menor error estándar residual (12,87) y el mayor estadístico F (101,9).
 
 ```{r}
 #| label: tbl-mod-met
@@ -193,25 +194,21 @@ tbl_mod_met <- modelsummary(
 tbl_mod_met
 ```
 
-Posteriormente, los modelos se compararon considerando principalmente el R² y la significancia global del modelo (estadístico F y su valor-p). Se seleccionó aquel con mayor capacidad explicativa, que fue el modelo con el predictor TMin, con un R² de 0,3921, el menor error estándar residual (12,87) y el mayor estadístico F (101,9).
+En seguida, se verificó el cumplimiento de los supuestos de regresión lineal del Modelo 3 de manera gráfica y formal. En primer lugar, el supuesto de **linealidad** se evaluó mediante un gráfico de residuos versus valores ajustados (@fig-diagnostico-met) y el test RESET de *Ramsey*. En el gráfico se observó un patrón en la distribución de los residuos de una curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta evaluación fue comprobada con el test RESET (p \< 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia estadísticamente significativa que la forma lineal no describe adecuadamente la relación.
 
-En seguida, para el modelo seleccionado se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal.
+En segundo lugar, el supuesto de **normalidad** fue evaluado a partir del gráfico Q-Q de residuos estandarizados (@fig-diagnostico-met ), en el cual se observaron desviaciones persistentes en las colas de la recta, lo que sugiere que el supuesto falla de manera localizada en los valores extremos. Formalmente se realizó el test de *Shapiro-Wilk* que evaluó el supuesto de normalidad de los residuos y a partir del cual se rechazó la hipótesis nula (W = 0,9649; p \< 0,001), existiendo evidencia estadísticamente significativa de que los residuos no siguen una distribución normal.
 
-El supuesto de **linealidad** se evaluó mediante un gráfico de residuos versus valores ajustados y el test RESET de Ramsey. En el gráfico se observó un patrón en la distribución de los residuos, donde la curva suavizada en lugar de una dispersión aleatoria alrededor de cero, lo que sugiere una posible falta de linealidad. Esta observación fue respaldada por el test RESET (p \< 0,001), cuyo resultado fue inferior a 0,05, lo que sugiere que existe evidencia de que la forma lineal no describe adecuadamente la relación.
+En tercer lugar, el supuesto de **homocedasticidad** fue evaluado gráficamente mediante un gráfico de escala-localización (@fig-diagnostico-met), que permite observar la raíz de los residuos estandarizados, indicando que la varianza de los residuos no sigue un patrón constante. Formalmente, el test de *Breusch-Pagan* indica que existe evidencia estadísticamente significativa de que la varianza de los residuos no es constante (BP = 41,97; p \< 0,001), por lo que existe evidencia de heterocedasticidad.
 
-El supuesto de **normalidad** fue evaluado a partir de un gráfico Q-Q de residuos estandarizados, en el cual se observaron desviaciones persistentes en las colas de la recta, lo que sugiere que el supuesto falla de manera localizada. Formalmente se realizó el test de Shapiro-Wilk que evaluó el supuesto de normalidad de los residuos y a partir del cual se rechazó la hipótesis nula (W = 0,9649; p \< 0,001), existiendo evidencia estadísticamente significativa de que los residuos no siguen una distribución normal.
+Luego, el supuesto de **independencia** de los residuos fue evaluado formalmente a partir del test de *Durbin-Watson*, obteniendo que no hay evidencia estadísticamente significativa de autocorrelación de los residuos (p \> 0,05).
 
-El supuesto de **homocedasticidad** fue evaluado gráficamente mediante un gráfico de escala-localización, que permite observar la raíz de los residuos estandarizados, indicando que la varianza de los residuos no sigue un patrón constante. Formalmente, el test de Breusch-Pagan indica que existe evidencia estadísticamente significativa de que la varianza de los residuos no es constante (BP = 41,97; p \< 0,001), por lo que existe evidencia de heterocedasticidad.
-
-El supuesto de **independencia** de los residuos fue revisado a partir del test de Durbin-Watson, obteniendo que no hay evidencia de autocorrelación de los residuos (p \> 0,05). Dado que los datos corresponden a mediciones históricas de una estación de monitoreo y la base disponible no permite ordenar las observaciones cronológicamente, este resultado debe interpretarse con cautela.
-
-Adicionalmente, en cuanto a los **casos atípicos** el gráfico de *leverage* vs. residuos estandarizados sugiere que no existen observaciones influyentes en la medida en que no parecen existir observaciones que sobrepasen los contornos de distancia de Cook (0,5).
+Por último, en cuanto a los **casos atípicos,** el gráfico de *leverage* vs. residuos estandarizados (@fig-diagnostico-met) sugiere que no existen observaciones influyentes en la medida en que no parecen existir observaciones que sobrepasen los contornos de distancia de *Cook* (0,5).
 
 # Pregunta 2. Mejor MRLS basado en contaminantes atmosféricos.
 
-Para realizar este ejercicio, se calculó una matriz de correlaciones entre la variable PM2.5 y predictores de contaminantes atmosféricos. La matriz indicó una fuerte correlación de PM2.5 con todos los predictores. Esta fue más fuerte entre las variables PM2.5 con NO₂ y CO (0.84).
+Para estimar este modelo de regresión lineal, primero se observó la matriz de correlación entre la variable *PM2.5* y los cuatro contaminantes atmosféricos (ver @tbl-corr-df). La tabla indicó una fuerte correlación de PM2.5 con todos los predictores. Sin embargo, fue de mayor magnitud con *NO₂* y *CO* (0.84).
 
-Se ajustaron modelos de regresión lineal simple utilizando como variable respuesta el nivel de PM2.5 y, como predictor, cada uno de los contaminantes atmosféricos. Los modelos con NO₂ y CO presentaron un ajuste muy similar. Sin embargo, se seleccionó el modelo con NO₂, ya que presentó el mayor coeficiente de determinación (R² = 0,707) y el menor error estándar residual (RSE = 8,933). El modelo de regresión con el predictor CO es significativo (F = 70,5%; p\<0,05), lo que indica que la concentración de CO constituye un predictor estadísticamente significativo de la concentración de PM2.5. Adicionalmente, el modelo explica aproximadamente el 70,7% de la variabilidad observada en las concentraciones de PM2.5 a partir de la concentración de CO.
+Luego, se ajustaron cuatro modelos de regresión lineal simple para estimar el nivel de *PM2.5* con cada uno de los contaminantes atmosféricos como variables predictoras. Los modelos 2 (*CO*) y 4 (*NO₂*) presentaron un ajuste muy similar. Sin embargo, se seleccionó el modelo 4, ya que presentó el mayor coeficiente de determinación (R² = 0,707) y el menor error estándar residual (RSE = 8,933).
 
 ```{r}
 #| label: tbl-mod-cont
@@ -259,19 +256,19 @@ tbl_mod_cont <- modelsummary(
 tbl_mod_cont
 ```
 
-Se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. El supuesto de linealidad se evaluó mediante un gráfico de residuos vs. valores ajustados que evidenció una curvatura y un posible incumplimiento del supuesto en la cola superior. Formalmente, se estima el test RESET de Ramsey señala que existe evidencia de que la forma lineal no describe adecuadamente la relación (p \< 0,05).
+Se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. En primer lugar, el supuesto de **linealidad** se evaluó mediante un gráfico de residuos vs. valores ajustados que evidenció una curvatura y un posible incumplimiento del supuesto en la cola superior (ver @fig-diagnostico-cont). Formalmente, se estimó el test RESET de *Ramsey*, el que muestra que existe evidencia de que la forma lineal no describe adecuadamente la relación (p \< 0,05).
 
-Respecto al supuesto de normalidad de los residuos, el gráfico Q-Q de residuos estandarizados evidencia una falla de la normalidad de forma localizada en los extremos, con casos que se separan en las colas. Mediante el test Shapiro-Wilk, se rechaza H0 al 5%, por lo que existe evidencia de que los residuos no son normales.
+En segundo lugar, el supuesto de **normalidad** de los residuos se evaluó visualmente con el gráfico Q-Q de residuos estandarizados. Como se observa en @fig-diagnostico-cont, el gráfico evidencia una falla localizada de la normalidad en los extremos, con casos que se separan en las colas. Mediante el test *Shapiro-Wilk* se rechaza H0 al 5%, por lo que existe evidencia estadísticamente significativa que los residuos no son normales.
 
-Se realizó un chequeo de la homocedasticidad del modelo mediante un gráfico de escala-localización, donde la nube de los residuos no es razonablemente estable. Formalmente, el test de Breusch-Pagan resultó estadísticamente significativo (BP = 55,17; p \< 0,001), por lo que se rechaza la hipótesis nula de homocedasticidad. En consecuencia, existe evidencia de heterocedasticidad, indicando que la varianza de los residuos no es constante a lo largo de los valores ajustados. Por tanto, el supuesto de homocedasticidad no se cumple.
+En tercer lugar, se realizó un chequeo de la **homocedasticidad** del modelo mediante un gráfico de escala-localización, donde se observó que la nube de los residuos no es razonablemente estable (ver @fig-diagnostico-cont). Formalmente, el test de *Breusch-Pagan* resultó estadísticamente significativo (BP = 55,17; p \< 0,001), por lo que se rechaza la hipótesis nula de homocedasticidad. En consecuencia, existe evidencia de heterocedasticidad, indicando que la varianza de los residuos no es constante a lo largo de los valores ajustados.
 
-En cuanto al chequeo de independencia, el test de Durbin-Watson no evidencia autocorrelación de los residuos (DW = 2.039, p \> 0.05) . Sin embargo, dado que los datos corresponden a mediciones históricas de una estación de monitoreo de la calidad del aire, podría existir dependencia temporal entre observaciones. Esta posibilidad no puede evaluarse adecuadamente, ya que la base disponible no incluye una variable que permita ordenar las observaciones cronológicamente. Por tanto, los resultados del test deben interpretarse con cautela.
+Luego, en cuanto al chequeo de independencia, el test de *Durbin-Watson* no evidencia autocorrelación de los residuos (DW = 2.039, p \> 0.05) .
 
-Finalmente, en el gráfico de observaciones influyentes la mayoría de las observaciones están concentradas en la zona de bajo leverage y residuos cercanos a cero. Además, no parecen existir observaciones que sobrepasen los contornos de distancia de Cook (0,5).
+Por último, como se observa en @fig-diagnostico-cont, el gráfico de observaciones influyentes muestra que la mayoría de las observaciones están concentradas en la zona de bajo *leverage* y residuos cercanos a cero. Además, no parecen existir observaciones que sobrepasen los contornos de distancia de *Cook* (0,5).
 
 # Pregunta 3. Mejor modelo predictivo según técnicas iterativas.
 
-Las técnicas backward, forward y both seleccionaron el mismo modelo final, compuesto por las variables Viento, TMin, Humed, NO, NO2, CO y O3. Asimismo, los tres modelos comparten las mismas métricas AIC y BIC:
+Para estimar el mejor modelo predictivo de *PM2.5* según técnicas iterativas, se optó por estimar tres modelos con técnicas *backward*, *forward* y *both*. Las tres seleccionaron el mismo modelo de regresión lineal, compuesto por los predictores *Viento*, *TMin*, *Humed*, *NO*, *NO2*, *CO* y *O3*. Esta equivalencia se observa en la @tbl-aic-bic, donde los tres modelos presentan iguales métricas AIC y BIC.
 
 ```{r}
 #| label: objetos-metricas-seleccion
@@ -370,25 +367,9 @@ knitr::kable(
 )
 ```
 
-Aunque las variables aparecen en distinto orden en las fórmulas, el conjunto de predictores es idéntico y, por consiguiente, los modelos son equivalentes. Por lo tanto, no existe un método superior según las métricas finales; los tres procedimientos convergen a la misma especificación. La diferencia entre ellos se encuentra únicamente en la trayectoria seguida durante la selección.
+Dado que las tres técnicas seleccionaron el mismo modelo de regresión lineal, se optó por evaluar el paso a paso del procedimiento de selección *forward*. Como se observa en la @tbl-mod-forward, a continuación se describe la variación del R² ajustado y del AIC en cada etapa del procedimiento, considerando como referencia el modelo inmediatamente anterior.
 
-En la Tabla se presentan las medidas resumen de los ocho modelos de regresión lineal múltiple obtenidos iterativamente mediante el método de selección forward. A continuación, se describe la variación del R² ajustado y del AIC en cada etapa del procedimiento, considerando como referencia el modelo inmediatamente anterior.
-
-En primer lugar, el Modelo 1 (PM2.5 \~ 1), que incorporó únicamente el intercepto, presentó un R² ajustado de 0,000 y un AIC de 1353,215.
-
-En segundo lugar, el Modelo 2, con un predictor (PM2.5 \~ NO2), presentó un aumento de 0,705 en el R² ajustado, alcanzando un valor de 0,705. Asimismo, el AIC disminuyó en 194,446, hasta alcanzar un valor de 1158,769.
-
-En tercer lugar, el Modelo 3, con dos variables predictoras (PM2.5 \~ NO2 + CO), presentó un aumento de 0,058 en el R² ajustado, que alcanzó un valor de 0,763. Al mismo tiempo, el AIC disminuyó en 33,755, situándose en 1125,014.
-
-En cuarto lugar, el Modelo 4, con tres variables predictoras (PM2.5 \~ NO2 + CO + Humed), presentó un aumento de 0,025 en el R² ajustado, alcanzando un valor de 0,788. Por su parte, el AIC disminuyó en 16,856, hasta un valor de 1108,158.
-
-En quinto lugar, el Modelo 5, con cuatro variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3), presentó un aumento de 0,013 en el R² ajustado, que alcanzó un valor de 0,801. A su vez, el AIC disminuyó en 9,457, situándose en 1098,701.
-
-En sexto lugar, el Modelo 6, con cinco variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin), presentó un aumento de 0,011 en el R² ajustado, alcanzando un valor de 0,812. Paralelamente, el AIC disminuyó en 7,609, hasta alcanzar un valor de 1091,092.
-
-En séptimo lugar, el Modelo 7, con seis variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin + NO), presentó un aumento de 0,003 en el R² ajustado, que alcanzó un valor de 0,815. Asimismo, el AIC disminuyó en 2,282, situándose en 1088,810.
-
-Finalmente, el Modelo 8, con siete variables predictoras (PM2.5 \~ NO2 + CO + Humed + O3 + TMin + NO + Viento), presentó un aumento de 0,005 en el R² ajustado, alcanzando un valor de 0,820. Por su parte, el AIC disminuyó en 2,823, hasta alcanzar su menor valor entre los modelos comparados: 1085,987.
+El modelo inicial, que incluyó únicamente el intercepto, presentó un R² ajustado de 0,000 y un AIC de 1353,215. La incorporación de *NO2* generó la mayor mejora del proceso, elevando el R² ajustado a 0,705 (+0,705) y reduciendo el AIC a 1158,769. Posteriormente, la incorporación de *CO* aumentó el R² ajustado a 0,763 (+0,058), seguida por *Humed*, que lo elevó a 0,788 (+0,025). Las variables *O3* y *TMin* aportaron incrementos más moderados, alcanzando valores de 0,801 (+0,013) y 0,812 (+0,011), respectivamente. Finalmente, la incorporación de *NO* (+0,003) y *Viento* (+0,005) produjo mejoras marginales, hasta obtener un R² ajustado final de 0,820 y el menor AIC entre los modelos comparados (1085,987).
 
 ```{r}
 #| label: tbl-mod-forward
@@ -490,25 +471,33 @@ tbl_mod_forward <- modelsummary::modelsummary(
 tbl_mod_forward
 ```
 
+En conjunto, los resultados muestran que la mayor capacidad explicativa se obtuvo con la incorporación de *NO2*, mientras que las variables restantes aportaron mejoras adicionales de menor magnitud, aunque suficientes para alcanzar el mejor desempeño del modelo final.
+
 # Pregunta 4. Mejor MRLM con tres predictores.
 
-Con base en los resultados obtenidos previamente, se propone un modelo de regresión lineal múltiple para explicar los niveles de PM2.5, incorporando como predictores la temperatura mínima (TMin), correspondiente a una variable meteorológica, y dos contaminantes atmosféricos: dióxido de nitrógeno (NO2) y monóxido de carbono (CO). El modelo propuesto se especifica de la siguiente manera:
+Con base en los resultados obtenidos previamente, se propone un modelo de regresión lineal múltiple para explicar los niveles de *PM2.5*, incorporando como predictores la temperatura mínima (*TMin*), correspondiente a una variable meteorológica, y dos contaminantes atmosféricos: dióxido de nitrógeno (*NO2*) y monóxido de carbono (*CO*). El modelo propuesto se especifica de la siguiente manera:
 
-PM2.5i ​= β0 ​+ β1​TMini ​+ β2​NO2i ​+ β3​COi ​+ εi​
+$$
+\mathrm{PM}_{2.5,i}
+=
+\beta_0
++ \beta_1 \mathrm{TMin}_i
++ \beta_2 \mathrm{NO}_{2,i}
++ \beta_3 \mathrm{CO}_i
++ \varepsilon_i
+$$El modelo de regresión lineal múltiple estimado presentó un R² ajustado de 0,77, por lo que el 77,41% de la variabilidad de la variable dependiente es explicada conjuntamente por los tres predictores. Además, el estadístico F indica que el modelo es estadísticamente significativo (p \< 0,001). De esta manera, *ceteris paribus*, un aumento de 1°C en *TMin* se asocia con una disminución esperada de 0,57 unidades de *PM2.5* (p \< 0,01), un aumento de 1 ppb de *NO2* se asocia con un aumento esperado de 0,53 unidades de *PM2.5* (p \< 0,001), y un aumento de 1 ppm de *CO* se asocia con un aumento esperado de 13,70 unidades de *PM2.5* (p \< 0,001).
 
-El modelo de regresión lineal múltiple estimado presentó un R2 ajustado de 0,77, por lo que el 77,41% de la variabilidad de la variable dependiente es explicada conjuntamente por los tres predictores. Además, el estadístico F indica que el modelo es estadísticamente significativo (p \< 0,001).
+Posteriormente, se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. En primer lugar, para chequear el supuesto de **linealidad** se realizó un gráfico de residuos vs. valores ajustados (ver @fig-diagnostico-mrlm). En este se observó una curva suavizada aproximadamente horizontal, aunque con curvaturas en los extremos, lo que podría sugerir un incumplimiento del supuesto. Formalmente, el test RESET de *Ramsey* resultó estadísticamente significativo (RESET = 3,30; p \< 0,05), por lo que se rechaza la hipótesis nula. Es decir, existe evidencia de una posible mala especificación de la forma funcional del modelo, por lo que no se cumple adecuadamente el supuesto de linealidad.
 
-Ceteris paribus, un aumento de 1°C en TMin se asocia con una disminución esperada de 0,57 unidades de PM2.5 (p \< 0,01), un aumento de 1 ppb de NO2 se asocia con un aumento esperado de 0,53 unidades de PM2.5 (p \< 0,001), y un aumento de 1 ppm de CO se asocia con un aumento esperado de 13,70 unidades de PM2.5 (p \< 0,001).
+En segundo lugar, al evaluar el supuesto de **normalidad** de los residuos, el gráfico Q-Q de residuos estandarizados (@fig-diagnostico-mrlm) muestra que los puntos siguen la línea con desviaciones en las colas superior e inferior, por lo que el supuesto de normalidad podría estar fallando de manera localizada. Por su parte, el test de *Shapiro-Wilk* resultó estadísticamente significativo (W = 0,975; p \< 0,01), por lo que se rechaza la hipótesis nula de normalidad. En consecuencia, no se cumple el supuesto de normalidad de los residuos.
 
-Posteriormente, se verificó el cumplimiento de los supuestos de regresión lineal de manera gráfica y formal. Para chequear el supuesto de linealidad, se realizó un gráfico de residuos vs. valores ajustados, donde se observó una curva suavizada aproximadamente horizontal, aunque con curvaturas en los extremos, lo que podría sugerir un incumplimiento del supuesto. Formalmente, el test RESET de Ramsey resulta estadísticamente significativo (RESET = 3,30; p \< 0,05), por lo que se rechaza la hipótesis nula. En consecuencia, existe evidencia de una posible mala especificación de la forma funcional del modelo, por lo que no se cumple adecuadamente el supuesto de linealidad.
+En tercer lugar, se evaluó el supuesto de **homocedasticidad** revisando que la varianza de los errores permanezca constante a lo largo de todos los valores ajustados. El gráfico de escala-localización (@fig-diagnostico-mrlm) mostró cambios en la dispersión de los residuos en función de los valores ajustados, sugiriendo que su varianza no permanece constante. Esto fue respaldado por el test de *Breusch-Pagan*, que fue estadísticamente significativo (BP = 53,65; p \< 0,001), por lo que se rechaza la hipótesis nula de varianza constante. En consecuencia, no se cumple el supuesto de homocedasticidad.
 
-Al evaluar el supuesto de normalidad de los residuos, el gráfico Q-Q de residuos estandarizados muestra que los puntos siguen aproximadamente la línea, con desviaciones en las colas superior e inferior, por lo que el supuesto de normalidad podría estar fallando de manera localizada. Por su parte, el test de Shapiro-Wilk resulta estadísticamente significativo (W = 0,975; p \< 0,01), por lo que se rechaza la hipótesis nula de normalidad. En consecuencia, no se cumple el supuesto de normalidad de los residuos.
+Luego, con respecto al supuesto de **independencia**, el test de *Durbin-Watson* no evidencia autocorrelación positiva de primer orden en los residuos (DW = 2,17; p = 0,863). Asimismo, gráficamente no se identificaron observaciones altamente influyentes (ver @fig-diagnostico-mrlm), aunque algunos casos presentan mayor *leverage* o residuos estandarizados, las observaciones se mantienen dentro de los contornos definidos por la distancia de *Cook*.
 
-En seguida, se evaluó el supuesto de homocedasticidad revisando si la varianza de los errores permanece constante a lo largo de todos los valores ajustados. El gráfico de escala-localización mostró cambios en la dispersión de los residuos en función de los valores ajustados, sugiriendo que su varianza no permanece constante. Esto fue respaldado por el test de Breusch-Pagan, que fue estadísticamente significativo (BP = 53,65; p \< 0,001), por lo que se rechaza la hipótesis nula de varianza constante. En consecuencia, no se cumple el supuesto de homocedasticidad.
+Por último, se evaluó la **multicolinealidad**. La matriz de correlación entre variables predictoras (ver @tbl-corr-df) muestra asociaciones negativas moderadas entre *TMin* y *NO2* (r = −0,61) y entre *TMin* y *CO* (r = −0,57). Al mismo tiempo, *NO2* y *CO* presentan una alta correlación positiva (r = 0,84), lo que evidencia información compartida entre ambos predictores. Este patrón es consistente con el gráfico diagnóstico (@fig-diagnostico-mrlm) basado en el Factor de Inflación de la Varianza (VIF). Los valores obtenidos se encuentran por debajo de 5 para los tres predictores. Como indica formalmente la @tbl-vif-mod-tres-pred, *TMin* presenta el menor VIF (1,616), mientras que *CO* (3,562) y *NO2* (3,794) presentan valores más elevados.
 
-Respecto de la independencia, el test de Durbin-Watson no evidencia autocorrelación positiva de primer orden en los residuos (DW = 2,17; p = 0,863). No obstante, al tratarse del mismo conjunto de datos históricos analizado previamente, se mantienen las limitaciones señaladas respecto de la ausencia de información sobre el orden temporal de las observaciones. Por otro lado, gráficamente no se identificaron observaciones altamente influyentes, ya que, aunque algunos casos presentan mayor leverage o residuos estandarizados, las observaciones se mantienen dentro de los contornos definidos por la distancia de Cook.
-
-Por último, se evaluó la multicolinealidad. La matriz de correlaciones entre variables predictoras muestra asociaciones negativas moderadas entre TMin y NO2 (r = −0,61) y entre TMin y CO (r = −0,57), mientras que NO2 y CO presentan una correlación positiva alta (r = 0,84), lo que evidencia información compartida entre ambos predictores. Este patrón es consistente con el gráfico diagnóstico basado en el Factor de Inflación de la Varianza (VIF). Los valores obtenidos se encuentran por debajo de 5 para los tres predictores. Como indica formalmente la Tabla XXX, TMin presenta el menor VIF (1,616), mientras que CO (3,562) y NO2 (3,794) presentan valores más elevados. En conjunto, estos resultados sugieren una colinealidad baja a moderada entre los predictores, sin alcanzar niveles considerados problemáticos según el criterio VIF \< 5.
+En conjunto, estos resultados sugieren una colinealidad baja a moderada entre los predictores, sin alcanzar niveles considerados problemáticos según el criterio VIF \< 5.
 
 \clearpage
 
@@ -519,16 +508,53 @@ Por último, se evaluó la multicolinealidad. La matriz de correlaciones entre v
 ```{r}
 #| label: tbl-corr-df
 #| echo: false
+#| tbl-cap: "Matriz de correlación entre variables"
 #| fig-align: center
 #| tbl-pos: H
 
 tabla_corr <- cor(df, use = "pairwise.complete.obs") |>
   round(2) |>
-  knitr::kable(
-    caption = "Matriz de correlación entre variables",
-    align = "c"
-  )
+  knitr::kable(align = "c")
 tabla_corr
+```
+
+## Tabla VIF del MRLM de tres predictores
+
+```{r}
+#| label: tbl-vif-mod-tres-pred
+#| echo: false
+#| tbl-cap: "Factor de Inflación de la Varianza (VIF) del MRLM de tres predictores"
+#| tbl-pos: H
+
+mod_tres_pred <- lm(
+  PM2.5 ~ TMin + NO2 + CO,
+  data = df
+)
+
+valores_vif <- car::vif(mod_tres_pred)
+
+tbl_vif_mtp <- data.frame(
+  Predictor = names(valores_vif),
+  VIF = as.numeric(valores_vif)
+) |>
+  gt::gt() |>
+  gt::fmt_number(
+    columns = VIF,
+    decimals = 3
+  ) |>
+  gt::cols_align(
+    align = "center",
+    columns = gt::everything()
+  ) |>
+  gt::tab_options(
+    table.align = "center",
+    table.font.size = gt::px(10),
+    table.width = gt::pct(80),
+    data_row.padding = gt::px(2),
+    column_labels.padding = gt::px(3)
+  )
+
+tbl_vif_mtp
 ```
 
 ## Diagnóstico de supuestos MRLS con variable metereológica (PM2.5 \~ Tmin)
