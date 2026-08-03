@@ -496,7 +496,7 @@ En conjunto, los resultados muestran que la mayor capacidad explicativa se obtuv
 
 Con base en los resultados obtenidos previamente, se propone un modelo de regresión lineal múltiple para explicar los niveles de *PM2.5*, incorporando como predictores la temperatura mínima (*TMin*), correspondiente a una variable meteorológica, y dos contaminantes atmosféricos: dióxido de nitrógeno (*NO2*) y monóxido de carbono (*CO*). El modelo propuesto se especifica de la siguiente manera:
 $$
-\mathrm{PM2.5}_{i}
+\widehat{PM2.5}_{i}
 =
 \beta_0
 + \beta_1 \mathrm{TMin}_i
