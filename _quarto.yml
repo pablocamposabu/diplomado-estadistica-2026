@@ -3,3 +3,4 @@ project:
   output-dir: output
   render:
     - Qmd/01-Informe_1.qmd
+    - Qmd/02-Informe_2.qmd
