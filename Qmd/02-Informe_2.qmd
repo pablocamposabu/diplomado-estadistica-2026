@@ -70,6 +70,7 @@ library(readxl)
 library(janitor)
 library(gt)
 library(gtsummary)
+
 set_gtsummary_theme(theme_gtsummary_compact())
 
 
@@ -278,7 +279,68 @@ El *Odds Ratio* asociado al sexo corresponde a $OR=3.18$. Es decir, manteniendo 
 
 # Regresión Poisson
 
-## Modelo de regresión Poisson con variables Edad, Sexo y Pb.
+## Modelo de regresión Poisson con variables *Edad*, *Sexo* y *Pb*.
+
+La @tbl-modelo-poisson presenta el modelo de regresión poisson estimado para predecir la frecuencia de episodios respiratorios por trimestre según las variables edad, sexo y nivel de plomo en la sangre.
+
+```{r}
+#| label: modelo-poisson
+#| include: false
+
+mod_poisson <- glm(
+  num_v ~ edad + sexo + pb,
+  family = poisson(link = "log"),
+  data = df_proc
+)
+```
+
+```{r}
+#| label: tabla-modelo-poisson
+#| include: false
+
+tbl_mod_poisson <- mod_poisson |> 
+  tbl_regression(
+    exponentiate = TRUE,
+    intercept = FALSE,
+    conf.level = 0.90,
+    label = list(
+      edad ~ "Edad (años)",
+      sexo ~ "Sexo",
+      pb ~ "Nivel de plomo en la sangre (μg/dL)"
+    ),
+    estimate_fun = label_style_number(digits = 2),
+    pvalue_fun = label_style_pvalue(digits = 3)
+  ) |> 
+  add_significance_stars(
+    thresholds = c(0.01, 0.05, 0.10),
+    hide_ci = FALSE,
+    hide_p = FALSE
+  ) |> 
+  modify_header(
+  label ~ "**Variable**",
+  estimate ~ "**Razón de frecuencias**",
+  ci ~ "**IC 90%**",
+  p.value ~ "**Valor p**"
+) |> 
+  modify_caption(
+    "**Frecuencia trimestral de episodios respiratorios**"
+  ) |>    
+  bold_p(t = 0.10) |> 
+  modify_footnote(
+  estimate ~ "Razón de frecuencias = exp(β); *p < 0,10; **p < 0,05; ***p < 0,01",
+  ci ~ "Intervalo de confianza del 90%"
+)
+
+```
+
+```{r}
+#| label: tbl-modelo-poisson
+#| echo: false
+#| tbl-cap: "Frecuencia trimestral de problemas respiratorios según edad, sexo y nivel de plomo en la sangre (μg/dL)"
+#| tbl-pos: H
+
+tbl_mod_poisson
+```
 
 ### Cada una de las variables, ¿es estadísticamente significativa al 10%?
 
@@ -286,8 +348,168 @@ El *Odds Ratio* asociado al sexo corresponde a $OR=3.18$. Es decir, manteniendo 
 
 ## Incorpore el factor "comuna" al modelo Poisson previo.
 
+```{r}
+#| label: modelo-poisson-comuna
+#| include: false
+
+mod_poisson_comuna <- glm(
+  num_v ~ edad + sexo + pb + comuna,
+  family = poisson(link = "log"),
+  data = df_proc
+)
+```
+
+```{r}
+#| label: tabla-modelo-poisson-comuna
+#| include: false
+
+tbl_mod_poisson_comuna <- mod_poisson_comuna |> 
+  tbl_regression(
+    exponentiate = TRUE,
+    intercept = FALSE,
+    conf.level = 0.90,
+    label = list(
+      edad ~ "Edad (años)",
+      sexo ~ "Sexo",
+      pb ~ "Nivel de plomo en la sangre (μg/dL)",
+      comuna ~ "Comuna"
+    ),
+    estimate_fun = label_style_number(digits = 2),
+    pvalue_fun = label_style_pvalue(digits = 3)
+  ) |> 
+  add_significance_stars(
+    thresholds = c(0.01, 0.05, 0.10),
+    hide_ci = FALSE,
+    hide_p = FALSE
+  ) |> 
+  modify_header(
+  label ~ "**Variable**",
+  estimate ~ "**Razón de frecuencias**",
+  ci ~ "**IC 90%**",
+  p.value ~ "**Valor p**"
+) |> 
+  modify_caption(
+    "**Frecuencia trimestral de episodios respiratorios**"
+  ) |>    
+  bold_p(t = 0.10) |> 
+  modify_footnote(
+  estimate ~ "Razón de frecuencias = exp(β); *p < 0,10; **p < 0,05; ***p < 0,01",
+  ci ~ "Intervalo de confianza del 90%"
+)
+
+```
+
+```{r}
+#| label: tbl-modelo-poisson-comuna
+#| echo: false
+#| tbl-cap: "Frecuencia trimestral de problemas respiratorios según edad, sexo, nivel de plomo en la sangre (μg/dL) y comuna"
+#| tbl-pos: H
+
+tbl_mod_poisson_comuna
+```
+
 ### ¿Qué variable(s) cambia de significancia? ¿Qué implica?
 
 ### ¿Cuál es el exp(beta) asociado a sexo? ¿Cuál es la referencia?
 
 ## ¿Existe sobredispersión? Si la respuesta es positiva, estímela. Finalmente. obtenga la predicción de la frecuencia de episodios respiratorios para un niño de 5 años que presenta un nivel de 5.5 μg/dL plomo en la sangre.
+
+```{r}
+#| label: diagnostico-poisson
+#| include: false
+
+# Grados de libertad residuales
+df_res <- df.residual(mod_poisson_comuna)
+
+# Deviance
+dev <- deviance(mod_poisson_comuna)
+
+p_dev <- pchisq(
+  dev,
+  df = df_res,
+  lower.tail = FALSE
+)
+
+# Pearson Chi-cuadrado
+pearson_x2 <- sum(
+  residuals(mod_poisson_comuna, type = "pearson")^2
+)
+
+p_pearson <- pchisq(
+  pearson_x2,
+  df = df_res,
+  lower.tail = FALSE
+)
+
+# Parámetro de dispersión
+phi_hat <- pearson_x2 / df_res
+
+# Resultados
+dev
+df_res
+p_dev
+pearson_x2
+p_pearson
+phi_hat
+
+```
+
+```{r}
+#| label: tabla-diagnostico-poisson
+#| include: false
+#| 
+tabla_dispersion <- tibble(
+  `Estadístico` = c(
+    "Deviance",
+    "Pearson χ²",
+    "Dispersión (φ̂)"
+  ),
+  `Valor` = c(
+    dev,
+    pearson_x2,
+    phi_hat
+  ),
+  `gl` = c(
+    df_res,
+    df_res,
+    NA
+  ),
+  `Valor p` = c(
+    p_dev,
+    p_pearson,
+    NA
+  )
+) |>
+  gt() |>
+  fmt_number(
+    columns = Valor,
+    decimals = 2
+  ) |>
+  fmt_number(
+    columns = gl,
+    decimals = 0
+  ) |>
+  fmt_number(
+    columns = `Valor p`,
+    decimals = 3
+  ) |>
+  cols_label(
+    gl = "gl"
+  ) |>
+  tab_header(
+    title = md("**Diagnóstico de dispersión del modelo Poisson**")
+  ) |>
+  tab_footnote(
+    footnote = md(
+      "φ̂ = χ² de Pearson / gl; valores de φ̂ cercanos a 1 son compatibles con el supuesto de dispersión Poisson."
+    ),
+    locations = cells_body(
+      columns = `Estadístico`,
+      rows = `Estadístico` == "Dispersión (φ̂)"
+    )
+  )
+
+tabla_dispersion
+```
+
+El modelo poisson supone equidispersión, es decir una dispersión = 1. Si La dispersión es >1 existe sobredispersión, donde la varianza es mayor que la media, sino existirá subdispersión.
