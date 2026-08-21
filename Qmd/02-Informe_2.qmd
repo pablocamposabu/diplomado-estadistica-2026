@@ -169,7 +169,6 @@ tbl_mod_logistico <- mod_logistico |>
   modify_header(
     label ~ "**Variable**",
     estimate ~ "**OR**",
-    ci ~ "**IC 90%**",
     p.value ~ "**Valor p**"
   ) |>
   modify_caption(
@@ -177,8 +176,8 @@ tbl_mod_logistico <- mod_logistico |>
   ) |>   
   bold_p(t = 0.10) |>
   modify_footnote(
-    estimate ~ "OR: odds ratio; *p < 0,10; **p < 0,05; ***p < 0,01",
-    ci ~ "Intervalo de confianza del 90%"
+    estimate ~ "*p < 0,10; **p < 0,05; ***p < 0,01",
+    #conf.low ~ "Intervalo de confianza del 90%"
   )
 ```
 
@@ -238,7 +237,6 @@ tbl_mod_logistico_comuna <- mod_logistico_comuna |>
   modify_header(
     label ~ "**Variable**",
     estimate ~ "**OR**",
-    ci ~ "**IC 90%**",
     p.value ~ "**Valor p**"
   ) |>
   modify_caption(
@@ -246,8 +244,8 @@ tbl_mod_logistico_comuna <- mod_logistico_comuna |>
   ) |>   
   bold_p(t = 0.10) |>
   modify_footnote(
-    estimate ~ "OR: odds ratio; *p < 0,10; **p < 0,05; ***p < 0,01",
-    ci ~ "Intervalo de confianza del 90%"
+    estimate ~ "*p < 0,10; **p < 0,05; ***p < 0,01",
+    #conf.low ~ "Intervalo de confianza del 90%"
   )
 ```
 
@@ -268,9 +266,143 @@ Al incorporar el factor comuna al modelo de regresión logística, todas las var
 
 ### ¿Cuál es el OR asociado al sexo? ¿Cuál es la referencia?
 
-El *Odds Ratio* asociado al sexo corresponde a $OR=3.18$. Es decir, manteniendo constantes la edad, el nivel de plomo en la sangre y la comuna de residencia de los individuos, se estima que los niños presentan unos *odds* de tener enfermedad respiratoria 3,18 veces mayores que las niñas. Esta asociación es estadísticamente significativa ($OR = 3,18$; $p<0,014$). En este aspecto, la categoría de referencia corresponde a las niñas ($Sexo = femenino$).
+El *Odds Ratio* asociado al sexo corresponde a $OR=3.18$. Es decir, manteniendo constantes la edad, el nivel de plomo en la sangre y la comuna de residencia de los individuos, se estima que los niños presentan unos *odds* de presentar enfermedad respiratoria 3,18 veces mayores que las niñas. Esta asociación es estadísticamente significativa ($OR = 3,18$; $p<0,014$). En este aspecto, la categoría de referencia corresponde a las niñas ($Sexo = femenino$).
 
 ## ¿Las probabilidades están razonablemente calibradas?
+
+Para evaluar la calibración de las probabilidades del modelo se realizó la estimación del *Brier Score* (BS), la prueba de *Hosmer-Lemeshow* (GOF) y un gráfico de calibración.
+
+```{r}
+#| label: puntaje-brier
+#| include: false
+
+# Recodificar nivel de medición de variable "resp".
+resp <- df_proc |> 
+  mutate(
+    resp = case_when(
+      resp == "Ausencia de problemas respiratorios" ~ 0,
+      resp == "Presencia de problemas respiratorios" ~ 1,
+      TRUE ~ NA_real_
+    )
+  ) |> 
+    pull(resp)
+
+# Probabilidad predicha que el resultado sea 1.
+prob_pred <- predict(
+  mod_logistico_comuna,
+  type = "response"
+)
+
+# Puntaje de Brier.
+brier_score <- mean(
+  (resp - prob_pred)^2,
+  na.rm = TRUE
+)
+
+brier_score
+```
+
+En primer lugar, el modelo de regresión logística presenta un Brier Score que indica un desempeño global satisfactorio ($BS = 0,1654$). Al encontrarse bajo el umbral de no-informatividad de 0,25, se demuestra que las probabilidades estimadas por el modelo poseen una capacidad de predicción y calibración real sobre la variable respuesta ($Pb$), reduciendo el error cuadrático medio por observación a un 16,54%.
+
+```{r}
+#| label: prueba-hl
+#| include: false
+
+library(ResourceSelection)
+
+prueba_hl <- hoslem.test(
+  x = mod_logistico_comuna$y,
+  y = fitted(mod_logistico_comuna),
+  g = 10
+)
+
+prueba_hl
+```
+
+En segundo lugar, al ejecutar la prueba de bondad de ajuste de *Hosmer-Lemeshow* sobre el modelo, se obtuvo un estadístico $X^2=5.8344$ con 8 grados de libertad y un valor $p = 0,6658$. Dado que el valor $p$ es mayor al nivel de significancia de 0,05, no existe evidencia suficiente para rechazar la hipótesis nula ($H_0$: las probabilidades estimadas por el modelo son consistentes con las frecuencias observadas en la realidad). Por lo tanto, se concluye que el modelo está adecuadamente calibrado.
+
+```{r}
+#| label: grafico-calibracion
+#| include: false
+
+# Datos utilizados efectivamente por el modelo
+respuesta <- model.response(
+  model.frame(mod_logistico_comuna)
+)
+
+# Convertir la respuesta a 0/1 si es un factor
+if (is.factor(respuesta)) {
+  respuesta <- as.numeric(
+    respuesta == "Presencia de problemas respiratorios"
+  )
+}
+
+datos_calibracion <- tibble(
+  observado = respuesta,
+  predicho  = fitted(mod_logistico_comuna)
+)
+
+# Agrupar las probabilidades predichas en deciles
+calibracion_deciles <- datos_calibracion |>
+  mutate(
+    grupo = ntile(predicho, 10)
+  ) |>
+  group_by(grupo) |>
+  summarise(
+    predicho_medio  = mean(predicho),
+    observado_medio = mean(observado),
+    n = n(),
+    .groups = "drop"
+  )
+calibracion_deciles
+
+# Crear gráfico de calibración
+gg_calibracion <- ggplot(
+  calibracion_deciles,
+  aes(x = predicho_medio, y = observado_medio)
+) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray50"
+  ) +
+  geom_line(
+    color = "#0072B2",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    color = "#0072B2",
+    size = 3
+  ) +
+  coord_equal(
+    xlim = c(0, 1),
+    ylim = c(0, 1)
+  ) +
+  labs(
+    title = "Calibración del modelo logístico",
+    subtitle = "Calibración por deciles de riesgo",
+    x = "Probabilidad predicha media",
+    y = "Proporción observada"
+  ) +
+  theme_minimal()
+```
+
+Por último, el gráfico de calibración por deciles de riesgo muestra una concordancia global razonable entre las probabilidades predichas y las proporciones observadas. Ahora, se identifican desviaciones en algunos deciles de riesgo, especialmente una sobreestimación en el rango de probabilidades altas (cercano a 0,90) y una ligera subestimación en algunos grupos de riesgo intermedio (entre 0,40 y 0,75).
+
+```{r}
+#| label: fig-grafico-calibracion
+#| echo: false
+#| fig-cap: "Gráfico de calibración del modelo de regresión logística por deciles de riesgo."
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 5
+#| out-width: 70%
+#| fig-dpi: 300
+#| fig-alt: "Gráfico que compara la probabilidad predicha media con la proporción observada de problemas respiratorios."
+
+gg_calibracion
+```
 
 ### ¿Existen observaciones muy influyentes o patrones no explicados?
 
